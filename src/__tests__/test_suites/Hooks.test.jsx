@@ -4,30 +4,56 @@ import App from "../../components/App";
 import { TaskProvider } from "../../context/TaskContext";
 
 describe("Task Manager App", () => {
-  test("renders initial tasks from the backend", async () => {
-    global.setFetchResponse(global.baseTasks)
-    let { getByText } = render(
-      <TaskProvider>
-        <App />
-      </TaskProvider>
-    );
-    
-    await waitFor(() => {
-      expect(getByText("Buy groceries")).toBeInTheDocument();
-      expect(getByText("Finish React project")).toBeInTheDocument();
+  // 👇 Put it right here
+  beforeEach(() => {
+    global.fetch = vi.fn((url, options) => {
+      if (options?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ id: 3, title: "Walk the dog", completed: false }),
+        });
+      }
+
+      if (options?.method === "PATCH") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ completed: true }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve([
+            { id: 1, title: "Buy groceries", completed: false },
+            { id: 2, title: "Finish React project", completed: false },
+          ]),
+      });
     });
   });
 
-  test("adds a new task when the form is submitted", async () => {
-    global.setFetchResponse(global.baseTasks)
-    let { getByText,getByPlaceholderText } = render(
+  it("renders initial tasks from the backend", async () => {
+    render(
       <TaskProvider>
         <App />
       </TaskProvider>
     );
 
-    const input = getByPlaceholderText("Add a new task...");
-    const button = getByText("Add Task");
+    await waitFor(() => {
+      expect(screen.getByText("Buy groceries")).toBeInTheDocument();
+      expect(screen.getByText("Finish React project")).toBeInTheDocument();
+    });
+  });
+
+  it("adds a new task when the form is submitted", async () => {
+    render(
+      <TaskProvider>
+        <App />
+      </TaskProvider>
+    );
+
+    const input = screen.getByPlaceholderText("Add a new task...");
+    const button = screen.getByText("Add Task");
 
     fireEvent.change(input, { target: { value: "Walk the dog" } });
     fireEvent.click(button);
@@ -37,8 +63,7 @@ describe("Task Manager App", () => {
     });
   });
 
-  test("filters tasks based on search input", async () => {
-    global.setFetchResponse(global.baseTasks)
+  it("filters tasks based on search input", async () => {
     render(
       <TaskProvider>
         <App />
@@ -55,25 +80,18 @@ describe("Task Manager App", () => {
     });
   });
 
-  test("toggles task completion state", async () => {
-    global.setFetchResponse(global.baseTasks)
-    let { getByText, findAllByTestId } = render(
+  it("toggles task completion state", async () => {
+    render(
       <TaskProvider>
         <App />
       </TaskProvider>
     );
-    const button =  await findAllByTestId("1")
-    global.setFetchResponse([{
-        "id": 1,
-        "name": "Woody",
-        "image": "http://www.pngmart.com/files/3/Toy-Story-Woody-PNG-Photos.png",
-        "likes": 8
-    }])
-    
-    
+
+    const toggleBtn = await screen.findByTestId("toggle-1");
+    fireEvent.click(toggleBtn);
+
     await waitFor(() => {
-        fireEvent.click(button[0]);
-        expect(getByText("Undo")).toBeInTheDocument();
+      expect(screen.getByText("Undo")).toBeInTheDocument();
     });
   });
 });
